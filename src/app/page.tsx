@@ -18,6 +18,7 @@ export default function LoginPage() {
   // Sign Up states
   const [fullName, setFullName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
   const [signupMobile, setSignupMobile] = useState('');
   const [designation, setDesignation] = useState('');
   const [departmentCode, setDepartmentCode] = useState('NAX-DEP-PROD');
@@ -48,8 +49,8 @@ export default function LoginPage() {
     setError('');
     setSuccessMsg('');
 
-    if (!fullName || !signupEmail || !designation) {
-      setError('Please fill in Full Name, Email, and Designation.');
+    if (!fullName || !signupEmail || !signupPassword || !designation) {
+      setError('Please fill in Full Name, Email, Password, and Designation.');
       return;
     }
 
@@ -388,6 +389,18 @@ export default function LoginPage() {
                   style={{ padding: '9px 12px', border: '1.5px solid #E2E8F0', borderRadius: '8px', fontSize: '0.83rem' }}
                   value={signupEmail}
                   onChange={(e) => setSignupEmail(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Create Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  style={{ padding: '9px 12px', border: '1.5px solid #E2E8F0', borderRadius: '8px', fontSize: '0.83rem' }}
+                  value={signupPassword}
+                  onChange={(e) => setSignupPassword(e.target.value)}
                 />
               </div>
 
