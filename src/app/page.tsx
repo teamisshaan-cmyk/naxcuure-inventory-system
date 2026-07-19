@@ -7,9 +7,24 @@ import { useRouter } from 'next/navigation';
 export default function LoginPage() {
   const { allUsers, loginAsUser } = useApp();
   const router = useRouter();
+
+  // Mode: signin vs signup
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+
+  // Sign In states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Sign Up states
+  const [fullName, setFullName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupMobile, setSignupMobile] = useState('');
+  const [designation, setDesignation] = useState('');
+  const [departmentCode, setDepartmentCode] = useState('NAX-DEP-PROD');
+  const [selectedRole, setSelectedRole] = useState('USER');
+
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [isLogging, setIsLogging] = useState(false);
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -25,6 +40,51 @@ export default function LoginPage() {
       router.push('/dashboard');
     } else {
       setError('Invalid credentials. Please use one of the Quick Access profiles below.');
+    }
+  };
+
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    if (!fullName || !signupEmail || !designation) {
+      setError('Please fill in Full Name, Email, and Designation.');
+      return;
+    }
+
+    setIsLogging(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName,
+          email: signupEmail,
+          mobileNumber: signupMobile || '9876543210',
+          plant: 'Plant 1',
+          departmentCode,
+          designation,
+          roles: selectedRole,
+          approvalLimit: selectedRole === 'DIRECTOR' ? 1000000 : 50000,
+          reportingManager: 'NAX-EMP-00001'
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+        setIsLogging(false);
+      } else {
+        setSuccessMsg('Account created successfully! Signing you in...');
+        setTimeout(() => {
+          loginAsUser(data.user.employeeCode);
+          router.push('/dashboard');
+        }, 1200);
+      }
+    } catch (err) {
+      setError('Failed to create account. Please try again.');
+      setIsLogging(false);
     }
   };
 
@@ -179,92 +239,203 @@ export default function LoginPage() {
                 <div style={{ color: '#F58220', fontSize: '0.6rem', letterSpacing: '2.5px', fontWeight: 700, textTransform: 'uppercase', marginTop: '3px' }}>INVENTORY SYSTEM</div>
               </div>
             </div>
-            <p style={{ color: '#64748B', fontSize: '0.84rem', marginTop: '4px' }}>Sign in to your plant operations account</p>
+            <p style={{ color: '#64748B', fontSize: '0.84rem', marginTop: '4px' }}>
+              {mode === 'signin' ? 'Sign in to your plant operations account' : 'Register a new enterprise user account'}
+            </p>
           </div>
 
-          {/* Login Form */}
-          <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {error && (
-              <div style={{
-                background: '#FEE2E2',
-                border: '1px solid #FCA5A5',
-                color: '#7F1D1D',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '0.81rem',
-                fontWeight: 500,
-              }}>
-                {error}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Official Email Address</label>
-              <input
-                id="login-email"
-                type="email"
-                style={{
-                  padding: '11px 14px',
-                  border: '1.5px solid #E2E8F0',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  transition: 'all 0.2s',
-                  color: '#0F172A',
-                }}
-                placeholder="e.g. arthur.nax@naxcuure.com"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                onFocus={(e) => { e.target.style.borderColor = '#1A56DB'; e.target.style.boxShadow = '0 0 0 3px rgba(26,86,219,0.1)'; }}
-                onBlur={(e) => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Password</label>
-              <input
-                id="login-password"
-                type="password"
-                style={{
-                  padding: '11px 14px',
-                  border: '1.5px solid #E2E8F0',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  transition: 'all 0.2s',
-                  color: '#0F172A',
-                }}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                onFocus={(e) => { e.target.style.borderColor = '#1A56DB'; e.target.style.boxShadow = '0 0 0 3px rgba(26,86,219,0.1)'; }}
-                onBlur={(e) => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-              />
-            </div>
-
+          {/* Mode Switcher Tabs */}
+          <div style={{
+            display: 'flex',
+            background: '#F1F5F9',
+            borderRadius: '12px',
+            padding: '4px',
+            gap: '4px',
+          }}>
             <button
-              id="login-submit"
-              type="submit"
-              disabled={isLogging}
+              type="button"
+              onClick={() => { setMode('signin'); setError(''); setSuccessMsg(''); }}
               style={{
-                width: '100%',
-                padding: '12px',
-                background: isLogging ? '#94A3B8' : 'linear-gradient(135deg, #F58220 0%, #D96B0B 100%)',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: '0.9rem',
+                flex: 1,
+                padding: '9px',
+                borderRadius: '8px',
                 border: 'none',
-                borderRadius: '10px',
-                cursor: isLogging ? 'not-allowed' : 'pointer',
-                marginTop: '4px',
-                boxShadow: isLogging ? 'none' : '0 4px 14px rgba(245,130,32,0.35)',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                background: mode === 'signin' ? '#1A56DB' : 'transparent',
+                color: mode === 'signin' ? '#FFFFFF' : '#64748B',
                 transition: 'all 0.2s',
-                letterSpacing: '0.01em',
               }}
             >
-              {isLogging ? 'Authenticating...' : 'Sign In to Dashboard'}
+              Sign In
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => { setMode('signup'); setError(''); setSuccessMsg(''); }}
+              style={{
+                flex: 1,
+                padding: '9px',
+                borderRadius: '8px',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                background: mode === 'signup' ? '#1A56DB' : 'transparent',
+                color: mode === 'signup' ? '#FFFFFF' : '#64748B',
+                transition: 'all 0.2s',
+              }}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          {/* Login / Signup Forms */}
+          {mode === 'signin' ? (
+            <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {error && (
+                <div style={{
+                  background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#7F1D1D',
+                  padding: '10px 14px', borderRadius: '8px', fontSize: '0.81rem', fontWeight: 500,
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Official Email Address</label>
+                <input
+                  id="login-email"
+                  type="email"
+                  style={{
+                    padding: '11px 14px', border: '1.5px solid #E2E8F0', borderRadius: '10px',
+                    fontSize: '0.85rem', outline: 'none', transition: 'all 0.2s', color: '#0F172A',
+                  }}
+                  placeholder="e.g. arthur.nax@naxcuure.com"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Password</label>
+                <input
+                  id="login-password"
+                  type="password"
+                  style={{
+                    padding: '11px 14px', border: '1.5px solid #E2E8F0', borderRadius: '10px',
+                    fontSize: '0.85rem', outline: 'none', transition: 'all 0.2s', color: '#0F172A',
+                  }}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                />
+              </div>
+
+              <button
+                id="login-submit"
+                type="submit"
+                disabled={isLogging}
+                style={{
+                  width: '100%', padding: '12px',
+                  background: isLogging ? '#94A3B8' : 'linear-gradient(135deg, #F58220 0%, #D96B0B 100%)',
+                  color: 'white', fontWeight: 700, fontSize: '0.9rem', border: 'none', borderRadius: '10px',
+                  cursor: isLogging ? 'not-allowed' : 'pointer', marginTop: '4px',
+                  boxShadow: isLogging ? 'none' : '0 4px 14px rgba(245,130,32,0.35)',
+                }}
+              >
+                {isLogging ? 'Authenticating...' : 'Sign In to Dashboard'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSignUpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {error && (
+                <div style={{
+                  background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#7F1D1D',
+                  padding: '10px 14px', borderRadius: '8px', fontSize: '0.81rem', fontWeight: 500,
+                }}>
+                  {error}
+                </div>
+              )}
+
+              {successMsg && (
+                <div style={{
+                  background: '#D1FAE5', border: '1px solid #6EE7B7', color: '#065F46',
+                  padding: '10px 14px', borderRadius: '8px', fontSize: '0.81rem', fontWeight: 500,
+                }}>
+                  {successMsg}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Alexander Vance"
+                  style={{ padding: '9px 12px', border: '1.5px solid #E2E8F0', borderRadius: '8px', fontSize: '0.83rem' }}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. alex.vance@naxcuure.com"
+                  style={{ padding: '9px 12px', border: '1.5px solid #E2E8F0', borderRadius: '8px', fontSize: '0.83rem' }}
+                  value={signupEmail}
+                  onChange={(e) => setSignupEmail(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Designation *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Senior Engineer"
+                    style={{ padding: '9px 12px', border: '1.5px solid #E2E8F0', borderRadius: '8px', fontSize: '0.83rem' }}
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0A1F3D' }}>Primary Role</label>
+                  <select
+                    style={{ padding: '9px 12px', border: '1.5px solid #E2E8F0', borderRadius: '8px', fontSize: '0.83rem' }}
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                  >
+                    <option value="USER">Standard User</option>
+                    <option value="DH">Department Head</option>
+                    <option value="INVENTORY_HEAD">Inventory Manager</option>
+                    <option value="PURCHASE_MANAGER">Purchase Manager</option>
+                    <option value="QA_QC">QA/QC Manager</option>
+                    <option value="MAINTENANCE_HEAD">Maintenance Head</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLogging}
+                style={{
+                  width: '100%', padding: '12px',
+                  background: isLogging ? '#94A3B8' : 'linear-gradient(135deg, #1A56DB 0%, #0D2B5E 100%)',
+                  color: 'white', fontWeight: 700, fontSize: '0.9rem', border: 'none', borderRadius: '10px',
+                  cursor: isLogging ? 'not-allowed' : 'pointer', marginTop: '6px',
+                  boxShadow: isLogging ? 'none' : '0 4px 14px rgba(26,86,219,0.35)',
+                }}
+              >
+                {isLogging ? 'Creating Profile...' : 'Register & Create Account'}
+              </button>
+            </form>
+          )}
 
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
