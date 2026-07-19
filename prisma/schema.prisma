@@ -1,0 +1,540 @@
+// This is the Prisma schema file for Naxcuure Inventory System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id                String   @id @default(uuid())
+  code              String   @unique // e.g., NAX-DEP-PROD
+  name              String
+  plant             String
+  parentCode        String?
+  headId            String?  // References Employee ID / User employeeCode
+  altHeadId         String?
+  costCentre        String
+  monthlyBudget     Float    @default(0.0)
+  annualBudget      Float    @default(0.0)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model User {
+  id               String   @id @default(uuid())
+  employeeCode     String   @unique // e.g., NAX-EMP-00001
+  userCode         String   @unique // e.g., NAX-USR-00001
+  fullName         String
+  email            String   @unique
+  mobileNumber     String
+  plant            String
+  departmentCode   String   // Link to Department code
+  designation      String
+  reportingManager String?  // Employee Code of reporting manager
+  status           String   @default("ACTIVE") // ACTIVE, SUSPENDED, RESIGNED, TERMINATED
+  roles            String   @default("USER") // Comma-separated active roles, e.g. "DH,MAINTENANCE_HEAD,USER"
+  joiningDate      DateTime
+  resignationDate  DateTime?
+  exitDate         DateTime?
+  approvalLimit    Float    @default(0.0) // Value limit for approval permissions
+  lastLogin        DateTime?
+  failedLogins     Int      @default(0)
+  profilePhoto     String?  // Path to profile photo
+  remarks          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Item {
+  id                        String   @id @default(uuid())
+  itemCode                  String   @unique // e.g., NAX-ITM-00001
+  name                      String
+  description               String
+  category                  String
+  subcategory               String
+  itemType                  String   @default("CONSUMABLE") // RAW_MATERIAL, SPARE, CONSUMABLE etc.
+  brand                     String?
+  manufacturer              String?
+  modelNumber               String?
+  partNumber                String?
+  techSpec                  String?
+  machineCompatibility      String?  // Commas or descriptions of machine compatibility
+  baseUnit                  String
+  issueUnit                 String
+  purchaseUnit              String
+  packSize                  String?
+  conversionFactor          Float    @default(1.0)
+  hsnCode                   String?
+  taxRate                   Float    @default(18.0) // percentage
+  minStock                  Float    @default(0.0)
+  maxStock                  Float    @default(0.0)
+  reorderLevel              Float    @default(0.0)
+  reorderQty                Float    @default(0.0)
+  safetyStock               Float    @default(0.0)
+  expectedLeadTime          Int      @default(7) // in days
+  standardRate              Float    @default(0.0)
+  lastPurchaseRate          Float    @default(0.0)
+  avgPurchaseRate           Float    @default(0.0)
+  preferredVendorId         String?  // References Vendor vendorCode
+  storageCondition          String?
+  shelfLifeDays             Int?
+  batchTrackingRequired     Boolean  @default(false)
+  expiryTrackingRequired    Boolean  @default(false)
+  serialTrackingRequired    Boolean  @default(false)
+  qualityInspectionRequired Boolean  @default(false)
+  classificationABC         String   @default("C") // A, B, C
+  classificationVED         String   @default("D") // V, E, D
+  classificationFNS         String   @default("S") // F, N, S (Fast, Normal, Slow)
+  restrictedDepartments     String?  // Comma-separated list of permitted department codes
+  imagePath                 String?
+  specFilePath              String?
+  isActive                  Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model StockBalance {
+  id            String   @id @default(uuid())
+  itemCode      String
+  warehouse     String   @default("MAIN")
+  location      String   @default("GEN")
+  batchNumber   String   @default("NA")
+  serialNumber  String   @default("NA")
+  physicalQty   Float    @default(0.0)
+  reservedQty   Float    @default(0.0)
+  availableQty  Float    @default(0.0)
+  blockedQty    Float    @default(0.0)
+  quarantineQty Float    @default(0.0)
+  damagedQty    Float    @default(0.0)
+  expiredQty    Float    @default(0.0)
+  lastUpdated   DateTime @default(now()) @updatedAt
+
+  @@unique([itemCode, warehouse, location, batchNumber, serialNumber])
+}
+
+model StockLedger {
+  id              String   @id @default(uuid())
+  transactionCode String   // e.g. NAX-MI-2026-00001, NAX-GRN-2026-00001, NAX-SA-2026-00001
+  dateTime        DateTime @default(now())
+  itemCode        String
+  warehouse       String
+  location        String
+  batchNumber     String
+  serialNumber    String
+  transactionType String   // ISSUE, GRN, RETURN, TRANSFER_OUT, TRANSFER_IN, ADJUST_INC, ADJUST_DEC, SCRAP, COUNT_DIFF
+  qtyIn           Float    @default(0.0)
+  qtyOut          Float    @default(0.0)
+  runningBalance  Float
+  unitRate        Float
+  transactionValue Float
+  referenceType   String   // MR (Material Request), PO (Purchase Order), WO (Work Order), etc.
+  referenceCode   String
+  performedBy     String   // employeeCode
+  approvedBy      String?  // employeeCode
+  activeRole      String
+  comment         String?
+}
+
+model MaterialRequest {
+  id                 String   @id @default(uuid())
+  requestCode        String   @unique // e.g. NAX-MR-2026-00001
+  requestDate        DateTime @default(now())
+  plant              String
+  departmentCode     String
+  requesterId        String   // Employee Code
+  requesterName      String
+  priority           String   // LOW, NORMAL, HIGH, URGENT, CRITICAL
+  requiredByDate     DateTime
+  purpose            String
+  productionBatch    String?
+  project            String?
+  machineCode        String?
+  workOrderReference String?
+  status             String   @default("PENDING_DH") // PENDING_DH, PENDING_IV, APPROVED, REJECTED, PARTIAL_ISSUED, ISSUED, RETURNED_FOR_CORRECTION, CANCELLED
+  remarks            String?
+  attachments        String?  // comma-separated files or JSON string
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MaterialRequestItem {
+  id                 String   @id @default(uuid())
+  requestCode        String   // Links to MaterialRequest requestCode
+  itemCode           String
+  itemName           String
+  specification      String?
+  requiredQty        Float
+  issuedQty          Float    @default(0.0)
+  purpose            String?
+  machineCode        String?
+  urgentJustification String?
+  estimatedRate      Float    @default(0.0)
+  estimatedValue     Float    @default(0.0)
+  status             String   @default("PENDING") // PENDING, APPROVED, REJECTED, ISSUED, PURCHASE_REQUIRED
+
+  @@unique([requestCode, itemCode])
+}
+
+model PurchaseRequisition {
+  id                 String   @id @default(uuid())
+  prCode             String   @unique // e.g. NAX-PR-2026-00001
+  requestCode        String?  // Optional link to MaterialRequest
+  departmentCode     String
+  itemCode           String
+  itemName           String
+  requiredQty        Float
+  requiredByDate     DateTime
+  priority           String   @default("NORMAL")
+  lastPurchaseRate   Float    @default(0.0)
+  estimatedValue     Float    @default(0.0)
+  status             String   @default("PENDING_PURCHASE") // PENDING_PURCHASE, RFQ_ISSUED, PO_CREATED, COMPLETED, CANCELLED
+  suggestedSupplier  String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Vendor {
+  id                String   @id @default(uuid())
+  vendorCode        String   @unique // e.g. NAX-VEN-00001
+  legalName         String
+  tradeName         String
+  address           String
+  contactPerson     String
+  phone             String
+  email             String
+  taxNumber         String   // VAT / GST / Tax ID
+  bankDetails       String?  // encrypted or basic text simulator
+  productCategories String?  // comma separated
+  approvedCategories String? // comma separated
+  paymentTerms      String
+  leadTimeDays      Int      @default(7)
+  qualityStatus     String   @default("APPROVED") // APPROVED, UNDER_EVALUATION, BLACKLISTED
+  isActive          Boolean  @default(true)
+  performanceScore  Float    @default(100.0) // 0-100 score
+  createdAt         DateTime @default(now())
+}
+
+model RFQ {
+  id          String   @id @default(uuid())
+  rfqCode     String   @unique // e.g. NAX-RFQ-2026-00001
+  rfqDate     DateTime @default(now())
+  dueDate     DateTime
+  prCode      String
+  itemCode    String
+  qty         Float
+  status      String   @default("OPEN") // OPEN, CLOSED, EVALUATED
+  createdAt   DateTime @default(now())
+}
+
+model Quotation {
+  id                    String   @id @default(uuid())
+  quotationCode         String   @unique // e.g. NAX-QTN-2026-00001
+  rfqCode               String
+  vendorCode            String
+  vendorName            String
+  rate                  Float
+  taxRate               Float    @default(18.0)
+  discount              Float    @default(0.0)
+  freight               Float    @default(0.0)
+  deliveryTimeDays      Int
+  paymentTerms          String
+  warranty              String?
+  isCompliant           Boolean  @default(true)
+  landedCost            Float
+  negotiatedRate        Float?
+  notes                 String?
+  isSelected            Boolean  @default(false)
+  selectionJustification String?
+  filePath              String?
+  createdAt             DateTime @default(now())
+}
+
+model PurchaseOrder {
+  id                 String   @id @default(uuid())
+  poCode             String   @unique // e.g. NAX-PO-2026-00001
+  vendorCode         String
+  vendorName         String
+  prCode             String?  // Optional linked PR
+  billingAddress     String
+  deliveryAddress    String
+  paymentTerms       String
+  deliveryDate       DateTime
+  warranty           String?
+  termsAndConditions String?
+  status             String   @default("DRAFT") // DRAFT, UNDER_APPROVAL, APPROVED, SENT_TO_VENDOR, ACKNOWLEDGED, PARTIALLY_DELIVERED, FULLY_DELIVERED, DELAYED, CANCELLED
+  totalAmount        Float
+  createdBy          String   // employeeCode
+  approvedBy         String?  // employeeCode
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model PurchaseOrderItem {
+  id          String @id @default(uuid())
+  poCode      String
+  itemCode    String
+  itemName    String
+  qty         Float
+  receivedQty Float  @default(0.0)
+  rate        Float
+  discount    Float  @default(0.0)
+  taxRate     Float  @default(18.0)
+  total       Float
+
+  @@unique([poCode, itemCode])
+}
+
+model GoodsReceipt {
+  id               String   @id @default(uuid())
+  grnCode          String   @unique // e.g. NAX-GRN-2026-00001
+  poCode           String
+  vendorCode       String
+  invoiceNumber    String
+  invoiceDate      DateTime
+  deliveryChallan  String?
+  vehicleNumber    String?
+  gateEntryNumber  String
+  receivedDate     DateTime @default(now())
+  receivedBy       String   // employeeCode
+  status           String   @default("QUARANTINED") // QUARANTINED, INSPECTED, COMPLETED
+  createdAt        DateTime @default(now())
+}
+
+model GoodsReceiptItem {
+  id                String    @id @default(uuid())
+  grnCode           String
+  itemCode          String
+  itemName          String
+  orderedQty        Float
+  receivedQty       Float
+  acceptedQty       Float     @default(0.0)
+  rejectedQty       Float     @default(0.0)
+  damagedQty        Float     @default(0.0)
+  batchNumber       String    @default("NA")
+  manufacturingDate DateTime?
+  expiryDate        DateTime?
+  serialNumber      String?
+  storageLocation   String    @default("QUARANTINE_AREA")
+  comments          String?
+
+  @@unique([grnCode, itemCode, batchNumber, serialNumber])
+}
+
+model QualityInspection {
+  id             String    @id @default(uuid())
+  inspectionCode String    @unique // e.g. NAX-QA-2026-00001
+  grnCode        String
+  itemCode       String
+  itemName       String
+  batchNumber    String
+  receivedQty    Float
+  sampleQty      Float     @default(0.0)
+  testSpec       String?
+  observation    String?
+  result         String    @default("PENDING") // PENDING, APPROVED, REJECTED, QUARANTINE_RELEASED, CONDITIONAL_APPROVED
+  acceptedQty    Float     @default(0.0)
+  rejectedQty    Float     @default(0.0)
+  inspectedBy    String    // employeeCode
+  inspectedDate  DateTime  @default(now())
+  releaseDate    DateTime?
+  coaPath        String?
+  reportPath     String?
+  comment        String?
+}
+
+model StockTransfer {
+  id             String    @id @default(uuid())
+  transferCode   String    @unique // e.g. NAX-ST-2026-00001
+  sourceWarehouse String
+  destWarehouse  String
+  itemCode       String
+  qty            Float
+  batchNumber    String    @default("NA")
+  serialNumber   String    @default("NA")
+  dispatchDate   DateTime  @default(now())
+  receiptDate    DateTime?
+  dispatchedBy   String    // employeeCode
+  receivedBy     String?   // employeeCode
+  status         String    @default("REQUESTED") // REQUESTED, DISPATCHED, IN_TRANSIT, COMPLETED, CANCELLED
+  shortageQty    Float     @default(0.0)
+  excessQty      Float     @default(0.0)
+  comments       String?
+}
+
+model StockAdjustment {
+  id             String   @id @default(uuid())
+  adjustmentCode String   @unique // e.g. NAX-SA-2026-00001
+  warehouse      String
+  location       String
+  itemCode       String
+  batchNumber    String   @default("NA")
+  serialNumber   String   @default("NA")
+  qtyDifference  Float    // positive for increase, negative for decrease
+  adjustmentType String   // INCREASE, DECREASE
+  reason         String
+  requestedBy    String   // employeeCode
+  approvedBy     String?  // employeeCode
+  status         String   @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED, REJECTED
+  createdAt      DateTime @default(now())
+}
+
+model Machine {
+  id                   String    @id @default(uuid())
+  machineCode          String    @unique // e.g. NAX-MCH-00001
+  name                 String
+  category             String
+  manufacturer         String?
+  model                String?
+  serialNumber         String?
+  plant                String
+  departmentCode       String
+  area                 String
+  locationDetail       String?
+  installationDate     DateTime
+  warrantyExpiry       DateTime?
+  amcVendor            String?
+  amcExpiry            DateTime?
+  capacity             String?
+  criticality          String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  responsibleDept      String
+  ownerId              String?   // employeeCode
+  pmFrequency          String    @default("MONTHLY") // WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  lastPMDate           DateTime?
+  nextPMDate           DateTime?
+  calibrationDue       DateTime?
+  sopPath              String?
+  manualPath           String?
+  imagePath            String?
+  status               String    @default("RUNNING") // RUNNING, IDLE, SETUP, UNDER_MAINTENANCE, BREAKDOWN, AWAITING_SPARE, AWAITING_VENDOR, VALIDATION, DECOMMISSIONED
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model MachineStatusHistory {
+  id          String   @id @default(uuid())
+  machineCode String
+  status      String
+  changedAt   DateTime @default(now())
+  reason      String?
+  performedBy String   // employeeCode
+}
+
+model Breakdown {
+  id                 String   @id @default(uuid())
+  breakdownCode      String   @unique // e.g. NAX-BD-2026-00001
+  reportedAt         DateTime @default(now())
+  machineCode        String
+  machineName        String
+  departmentCode     String
+  problemCategory    String   // MECHANICAL, ELECTRICAL, ELECTRONIC, PNEUMATIC, HYDRAULIC, SOFTWARE, UTILITY, INSTRUMENTATION, SAFETY, QUALITY, CHANGE_PART, OTHER
+  problemDescription String
+  productionBatch    String?
+  priority           String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT, CRITICAL
+  safetyImpact       Boolean  @default(false)
+  qualityImpact      Boolean  @default(false)
+  productionImpact   Boolean  @default(false)
+  estimatedLoss      Float    @default(0.0) // estimated hours of loss
+  reportedBy         String   // employeeCode
+  operator           String?
+  immediateAction    String?
+  stoppedAt          DateTime @default(now())
+  status             String   @default("REPORTED") // REPORTED, APPROVED, ASSIGNED, IN_REPAIR, TRIAL_RUN, RESOLVED, REJECTED
+  createdAt          DateTime @default(now())
+}
+
+model WorkOrder {
+  id                 String    @id @default(uuid())
+  workOrderCode      String    @unique // e.g. NAX-WO-2026-00001
+  breakdownCode      String?   // Optional link to Breakdown breakdownCode
+  machineCode        String
+  assignedTechnician String?   // employeeCode
+  assignedVendor     String?
+  plannedStart       DateTime
+  targetCompletion   DateTime
+  actualStart        DateTime?
+  actualCompletion   DateTime?
+  diagnosis          String?
+  workPerformed      String?
+  rootCause          String?
+  correctiveAction   String?
+  preventiveAction   String?
+  laborHours         Float     @default(0.0)
+  vendorCost         Float     @default(0.0)
+  spareCost          Float     @default(0.0) // Auto aggregated from SparePartUsage
+  totalCost          Float     @default(0.0)
+  status             String    @default("ASSIGNED") // ASSIGNED, IN_PROGRESS, AWAITING_SPARE, AWAITING_VENDOR, TRIAL_RUN, COMPLETED, CLOSED, REOPENED
+  beforeImagePath    String?
+  afterImagePath     String?
+  trialRunResult     String?   // SUCCESS, FAILED
+  verificationComment String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model SparePartUsage {
+  id            String   @id @default(uuid())
+  workOrderCode String
+  itemCode      String
+  itemName      String
+  qty           Float
+  unitRate      Float
+  totalValue    Float
+  requestedBy   String   // employeeCode
+  issuedBy      String?  // employeeCode
+  issuedAt      DateTime @default(now())
+}
+
+model PreventiveMaintenanceSchedule {
+  id                 String    @id @default(uuid())
+  scheduleCode       String    @unique // e.g. NAX-PM-2026-00001
+  machineCode        String
+  machineName        String
+  recurrence         String    // DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  checklist          String    // Plain text or semi-colon separated lists
+  lastRun            DateTime?
+  nextRun            DateTime
+  assignedTechnician String?   // employeeCode
+  status             String    @default("ACTIVE") // ACTIVE, IN_PROGRESS, COMPLETED, OVERDUE, PAUSED
+}
+
+model Comment {
+  id           String   @id @default(uuid())
+  recordType   String   // MR, PR, RFQ, PO, GRN, QA, STOCK_ADJ, BREAKDOWN, WORK_ORDER, ITEM
+  recordCode   String   // e.g. NAX-MR-2026-00001
+  userName     String
+  employeeCode String
+  role         String
+  content      String
+  timestamp    DateTime @default(now())
+}
+
+model Notification {
+  id           String   @id @default(uuid())
+  employeeCode String   // Recipient employeeCode
+  title        String
+  message      String
+  isRead       Boolean  @default(false)
+  timestamp    DateTime @default(now())
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  timestamp    DateTime @default(now())
+  userId       String
+  userName     String
+  employeeCode String
+  activeRole   String
+  module       String   // USERS, ITEMS, REQUESTS, PURCHASES, INVENTORY, QA, MAINTENANCE, AUDIT
+  action       String   // CREATE, UPDATE, APPROVE, REJECT, OVERRIDE, DELETE, EXPORT
+  recordType   String   // e.g. MaterialRequest, PurchaseOrder, Machine
+  recordCode   String   // e.g. NAX-MR-2026-00001
+  oldValue     String?  // JSON string or summary
+  newValue     String?  // JSON string or summary
+  comment      String?
+  ipAddress    String?
+}
